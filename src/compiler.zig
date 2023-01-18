@@ -287,10 +287,16 @@ fn declaration(self: *Self) void {
 }
 
 fn statement(self: *Self) void {
-    _ = self;
+    self.expressionStatement();
     // if (self.match(TokenType.print)) {
     //     self.printStatement();
     // }
+}
+
+fn expressionStatement(self: *Self) void {
+    self.expression();
+    self.consume(TokenType.semicolon, "Expected ';' after expression.");
+    self.emitOp(OpCode.pop);
 }
 
 // Error reporting functions

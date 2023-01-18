@@ -37,6 +37,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
 
     return switch (@intToEnum(OpCode, chunk.code.items[offset])) {
         OpCode.constant => constantInstruction("OP_CONSTANT", chunk, offset),
+        OpCode.pop => simpleInstruction("OP_POP", offset),
         OpCode.null => simpleInstruction("OP_NIL", offset),
         OpCode.true => simpleInstruction("OP_TRUE", offset),
         OpCode.false => simpleInstruction("OP_FALSE", offset),
