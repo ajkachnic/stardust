@@ -34,6 +34,8 @@ pub const Engine = struct {
     stack: [STACK_MAX]Value,
     // TODO: Switch to a slice once I figure out how go backwards with a slice
     stack_top: [*]Value,
+
+    globals: std.StringHashMap(Value),
     strings: InternMap,
     objects: ?*Obj,
 
@@ -51,8 +53,9 @@ pub const Engine = struct {
             .ip = undefined,
             .stack = [_]Value{undefined} ** 256,
             .stack_top = undefined,
-            .compiler = Compiler.init(allocator),
+            .globals = std.StringHashMap(Value).init(allocator),
             .strings = InternMap.init(allocator),
+            .compiler = Compiler.init(allocator),
             .objects = null,
         };
     }
@@ -71,6 +74,7 @@ pub const Engine = struct {
     /// Clean up all the left over memory
     pub fn deinit(self: *Engine) void {
         self.chunk.deinit();
+        self.globals.deinit();
         self.strings.deinit();
 
         // Free all leftover objects
@@ -142,6 +146,29 @@ pub const Engine = struct {
                     return;
                 },
                 OpCode.pop => _ = self.pop(),
+                OpCode.get_global => {
+                    var name = self.readString();
+                    if (self.globals.get(name.chars)) |global| {
+                        self.push(global);
+                    } else {
+                        self.runtimeError("Undefined variables {s}", .{name.chars});
+                        return error.RuntimeError;
+                    }
+                },
+                OpCode.set_global => {
+                    var name = self.readString();
+                    if (self.globals.contains(name.chars)) {
+                        self.globals.put(name.chars, self.peek(0)) catch common.oom();
+                    } else {
+                        self.runtimeError("Undefined variables {s}", .{name.chars});
+                        return error.RuntimeError;
+                    }
+                },
+                OpCode.define_global => {
+                    var name = self.readString();
+                    self.globals.put(name.chars, self.peek(0)) catch common.oom();
+                    _ = self.pop();
+                },
                 OpCode.constant => {
                     var constant = self.readConstant();
                     self.push(constant);
@@ -254,6 +281,10 @@ pub const Engine = struct {
 
     inline fn readConstant(self: *Engine) Value {
         return self.chunk.constants.items[self.readByte()];
+    }
+
+    inline fn readString(self: *Engine) *Obj.String {
+        return self.readConstant().obj.asString();
     }
 
     inline fn readByte(self: *Engine) u8 {

@@ -6,6 +6,9 @@ const Value = @import("value.zig").Value;
 pub const OpCode = enum {
     constant,
     pop,
+    get_global,
+    set_global,
+    define_global,
     null,
     true,
     false,
@@ -27,9 +30,6 @@ pub const OpCode = enum {
     // pop,
     // getLocal,
     // setLocal,
-    // getGlobal,
-    // setGlobal,
-    // defineGlobbal,
     @"return",
 };
 

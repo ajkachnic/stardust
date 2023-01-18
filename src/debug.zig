@@ -38,6 +38,9 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
     return switch (@intToEnum(OpCode, chunk.code.items[offset])) {
         OpCode.constant => constantInstruction("OP_CONSTANT", chunk, offset),
         OpCode.pop => simpleInstruction("OP_POP", offset),
+        OpCode.get_global => constantInstruction("OP_GET_GLOBAL", chunk, offset),
+        OpCode.set_global => constantInstruction("OP_SET_GLOBAL", chunk, offset),
+        OpCode.define_global => constantInstruction("OP_DEFINE_GLOBAL", chunk, offset),
         OpCode.null => simpleInstruction("OP_NIL", offset),
         OpCode.true => simpleInstruction("OP_TRUE", offset),
         OpCode.false => simpleInstruction("OP_FALSE", offset),
@@ -54,14 +57,5 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         OpCode.concat => simpleInstruction("OP_CONCAT", offset),
         OpCode.not => simpleInstruction("OP_NOT", offset),
         OpCode.negate => simpleInstruction("OP_NEGATE", offset),
-        // else => blk: {
-        //     std.debug.print("unknown opcode {d}\n", .{chunk.code.items[offset]});
-        //     break :blk offset + 1;
-        // },
     };
-
-    // var offset: usize = 0;
-    // while (offset < chunk.code.items.len) {
-    //     offset = disassembleInstruction(chunk, offset);
-    // }
 }
