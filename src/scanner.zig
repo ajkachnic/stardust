@@ -230,28 +230,9 @@ pub const Scanner = struct {
     }
 
     fn identifierType(self: *Scanner) TokenType {
-        // Warn: this might by a logical error
         return ident_map.get(
             self.start[0 .. self.start.len - self.current.len],
         ) orelse TokenType.identifier;
-        // return switch (idents.hash(self.start[0 .. self.current.len - self.start.len])) {
-        //     idents.case("and") => TokenType.@"and",
-        //     idents.case("class") => TokenType.class,
-        //     idents.case("const") => TokenType.@"const",
-        //     idents.case("else") => TokenType.@"else",
-        //     idents.case("false") => TokenType.false,
-        //     idents.case("for") => TokenType.@"for",
-        //     idents.case("fun") => TokenType.fun,
-        //     idents.case("if") => TokenType.@"if",
-        //     idents.case("let") => TokenType.let,
-        //     idents.case("null") => TokenType.null,
-        //     idents.case("or") => TokenType.@"or",
-        //     idents.case("print") => TokenType.print,
-        //     idents.case("return") => TokenType.@"return",
-        //     idents.case("true") => TokenType.true,
-        //     idents.case("while") => TokenType.@"while",
-        //     else => TokenType.identifier,
-        // };
     }
 
     fn number(self: *Scanner) Token {

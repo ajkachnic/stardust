@@ -80,7 +80,6 @@ pub const Obj = struct {
             var obj = Obj{ .t = .string, .next = engine.objects };
 
             if (engine.strings.getKey(&String{ .chars = chars, .hash = hash, .obj = obj })) |str| {
-                std.log.debug("already interned", .{});
                 // The string has already been interned
                 return str;
             }

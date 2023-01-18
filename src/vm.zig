@@ -66,7 +66,6 @@ pub const Engine = struct {
         const line = self.chunk.lines.items[instruction];
 
         log.err("[line {d}] " ++ format, .{line} ++ args);
-        // log.err("[line {d}] in script", .{line});
     }
 
     /// Clean up all the left over memory
@@ -142,6 +141,7 @@ pub const Engine = struct {
                     std.debug.print("{any}\n", .{self.pop()});
                     return;
                 },
+                OpCode.pop => _ = self.pop(),
                 OpCode.constant => {
                     var constant = self.readConstant();
                     self.push(constant);
