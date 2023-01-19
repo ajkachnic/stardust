@@ -145,6 +145,14 @@ pub const Engine = struct {
                     std.debug.print("{any}\n", .{self.pop()});
                     return;
                 },
+                OpCode.jump_if_false => {
+                    var offset = self.readShort();
+                    if (self.peek(0).isFalsey()) self.ip = self.ip[offset..];
+                },
+                OpCode.jump => {
+                    var offset = self.readShort();
+                    self.ip = self.ip[offset..];
+                },
                 OpCode.pop => _ = self.pop(),
                 OpCode.get_local => {
                     var slot = self.readByte();
@@ -299,5 +307,12 @@ pub const Engine = struct {
         const ip = self.ip;
         self.ip = self.ip[1..];
         return ip[0];
+    }
+
+    inline fn readShort(self: *Engine) u16 {
+        const ip = self.ip;
+        self.ip = self.ip[2..];
+
+        return @intCast(u16, ip[0]) << 8 | @intCast(u16, ip[1]);
     }
 };

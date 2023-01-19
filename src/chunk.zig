@@ -32,6 +32,8 @@ pub const OpCode = enum {
     // pop,
     // getLocal,
     // setLocal,
+    jump_if_false,
+    jump,
     @"return",
 };
 

@@ -147,6 +147,13 @@ fn emitBytes(self: *Self, bytes: []const u8) void {
     }
 }
 
+fn emitJump(self: *Self, instruction: OpCode) u16 {
+    self.emitOp(instruction);
+    self.emitByte(0xff);
+    self.emitByte(0xff);
+    return @intCast(u16, self.compiling_chunk.code.items.len - 2);
+}
+
 fn emitReturn(self: *Self) void {
     self.emitOp(OpCode.@"return");
 }
@@ -163,6 +170,17 @@ fn makeConstant(self: *Self, value: Value) u8 {
 
 fn emitConstant(self: *Self, value: Value) void {
     self.emitBytes(&[_]u8{ @enumToInt(OpCode.@"constant"), self.makeConstant(value) });
+}
+
+fn patchJump(self: *Self, offset: usize) void {
+    var jump = self.compiling_chunk.code.items.len - offset - 2;
+
+    if (jump > common.max_jump) {
+        self.err("Too much code to jump over.");
+    }
+
+    self.compiling_chunk.code.items[offset] = @intCast(u8, (jump >> 8) & 0xff);
+    self.compiling_chunk.code.items[offset + 1] = @intCast(u8, jump & 0xff);
 }
 
 fn endCompiler(self: *Self) void {
@@ -457,7 +475,9 @@ fn declaration(self: *Self) void {
 }
 
 fn statement(self: *Self) void {
-    if (self.match(.leftBrace)) {
+    if (self.match(.@"if")) {
+        self.ifStatement();
+    } else if (self.match(.leftBrace)) {
         self.beginScope();
         self.block();
         self.endScope();
@@ -470,6 +490,24 @@ fn expressionStatement(self: *Self) void {
     self.expression();
     self.consume(TokenType.semicolon, "Expected ';' after expression.");
     self.emitOp(OpCode.pop);
+}
+
+fn ifStatement(self: *Self) void {
+    // self.consume(.leftParen, "Expect '(' after 'if'.");
+    self.expression();
+    // self.consume(.rightParen, "Expect ')' after condition.");
+
+    var thenJump = self.emitJump(.jump_if_false);
+    self.emitOp(.pop);
+    self.statement();
+
+    var elseJump = self.emitJump(.jump);
+
+    self.patchJump(thenJump);
+    self.emitOp(.pop);
+
+    if (self.match(.@"else")) self.statement();
+    self.patchJump(elseJump);
 }
 
 // Panic mode is here to reduce the number of cascading errors from a single syntax error.
