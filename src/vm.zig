@@ -183,6 +183,11 @@ pub const Engine = struct {
                         self.ip = self.ip[offset..];
                     }
                 },
+                OpCode.loop => {
+                    var offset = self.readShort();
+                    // Cursed slice move
+                    self.ip = (self.ip.ptr - offset)[0 .. self.ip.len + offset];
+                },
 
                 OpCode.pop => _ = self.pop(),
                 OpCode.get_local => {

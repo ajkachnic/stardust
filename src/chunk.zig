@@ -39,6 +39,7 @@ pub const OpCode = enum {
     @"and",
     /// If the top of the stack is non-false, jump [arg] forward. Otherwise pop and continue.
     @"or",
+    loop,
 
     @"return",
 };

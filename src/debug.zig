@@ -26,11 +26,11 @@ fn simpleInstruction(name: []const u8, offset: usize) usize {
     return offset + 1;
 }
 
-fn jumpInstruction(name: []const u8, sign: usize, chunk: *Chunk, offset: usize) usize {
+fn jumpInstruction(name: []const u8, sign: isize, chunk: *Chunk, offset: usize) usize {
     var jump = @intCast(u16, chunk.code.items[offset + 1]) << 8;
     jump |= chunk.code.items[offset + 2];
 
-    std.debug.print("{s: <16} {d: >4} -> {d}\n", .{ name, offset, offset + 3 + sign * jump });
+    std.debug.print("{s: <16} {d: >4} -> {d}\n", .{ name, offset, @intCast(isize, offset) + 3 + sign * @intCast(isize, jump) });
     return offset + 3;
 }
 
@@ -66,6 +66,7 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         OpCode.jump => jumpInstruction("OP_JUMP", 1, chunk, offset),
         OpCode.@"and" => jumpInstruction("OP_AND", 1, chunk, offset),
         OpCode.@"or" => jumpInstruction("OP_OR", 1, chunk, offset),
+        OpCode.loop => jumpInstruction("OP_LOOP", -1, chunk, offset),
 
         OpCode.add => simpleInstruction("OP_ADD", offset),
         OpCode.subtract => simpleInstruction("OP_SUBTRACT", offset),

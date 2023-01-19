@@ -130,7 +130,7 @@ pub const Scanner = struct {
             '!' => return self.makeToken(if (self.match('=')) .bang_equal else .bang),
             '=' => return self.makeToken(if (self.match('=')) .equal_equal else .equal),
             '>' => return self.makeToken(if (self.match('=')) .greater_equal else .greater),
-            '<' => return self.makeToken(if (self.match('=')) .less_equal else .equal),
+            '<' => return self.makeToken(if (self.match('=')) .less_equal else .less),
             '.' => return self.makeToken(if (self.match('.')) .dot_dot else .dot),
 
             '"' => return self.string(),

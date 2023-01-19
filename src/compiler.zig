@@ -148,6 +148,16 @@ fn emitBytes(self: *Self, bytes: []const u8) void {
     }
 }
 
+fn emitLoop(self: *Self, loop_start: usize) void {
+    self.emitOp(.loop);
+
+    var offset = self.compiling_chunk.code.items.len - loop_start + 2;
+    if (offset > common.max_jump) self.err("Loop body too large.");
+
+    self.emitByte(@intCast(u8, (offset >> 8) & 0xff));
+    self.emitByte(@intCast(u8, offset & 0xff));
+}
+
 fn emitJump(self: *Self, instruction: OpCode) u16 {
     self.emitOp(instruction);
     self.emitByte(0xff);
@@ -208,7 +218,6 @@ fn endScope(self: *Self) void {
 fn binary(self: *Self, can_assign: bool) void {
     _ = can_assign;
     var operator_type = self.previous.t;
-
     var rule = rules.get(operator_type);
     self.parsePrecedence(rule.precedence.increment()); // Compile the operand
 
@@ -326,8 +335,8 @@ const rules = std.EnumArray(TokenType, ParseRule).initDefault(ParseRule.default(
 
     .equal_equal = ParseRule.init(null, &binary, .equality),
     .greater = ParseRule.init(null, &binary, .comparison),
-    .greater_equal = ParseRule.init(null, &binary, .comparison),
     .less = ParseRule.init(null, &binary, .comparison),
+    .greater_equal = ParseRule.init(null, &binary, .comparison),
     .less_equal = ParseRule.init(null, &binary, .comparison),
 
     .false = ParseRule.init(&literal, null, .none),
@@ -348,9 +357,9 @@ fn parsePrecedence(self: *Self, precedence: Precedence) void {
 
     var prefix_rule: ?ParseFn = rules.get(self.previous.t).prefix;
 
-    if (prefix_rule) |rule| {
+    if (prefix_rule) |prefix| {
         var can_assign = @enumToInt(precedence) <= @enumToInt(Precedence.assignment);
-        rule(self, can_assign);
+        prefix(self, can_assign);
 
         while (@enumToInt(precedence) <= @enumToInt(rules.get(self.current.t).precedence)) {
             self.advance();
@@ -503,6 +512,8 @@ fn declaration(self: *Self) void {
 fn statement(self: *Self) void {
     if (self.match(.@"if")) {
         self.ifStatement();
+    } else if (self.match(.@"while")) {
+        self.whileStatement();
     } else if (self.match(.leftBrace)) {
         self.beginScope();
         self.block();
@@ -535,6 +546,19 @@ fn ifStatement(self: *Self) void {
         self.statement();
     }
     self.patchJump(else_jump);
+}
+
+fn whileStatement(self: *Self) void {
+    var loop_start = self.compiling_chunk.code.items.len;
+    self.expression();
+
+    var exit_jump = self.emitJump(.jump_if);
+    self.statement();
+
+    self.emitLoop(loop_start);
+
+    self.patchJump(exit_jump);
+    self.emitOp(.pop);
 }
 
 // Panic mode is here to reduce the number of cascading errors from a single syntax error.
