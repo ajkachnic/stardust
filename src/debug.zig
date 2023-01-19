@@ -38,6 +38,8 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
     return switch (@intToEnum(OpCode, chunk.code.items[offset])) {
         OpCode.constant => constantInstruction("OP_CONSTANT", chunk, offset),
         OpCode.pop => simpleInstruction("OP_POP", offset),
+        OpCode.get_local => constantInstruction("OP_GET_LOCAL", chunk, offset),
+        OpCode.set_local => constantInstruction("OP_SET_LOCAL", chunk, offset),
         OpCode.get_global => constantInstruction("OP_GET_GLOBAL", chunk, offset),
         OpCode.set_global => constantInstruction("OP_SET_GLOBAL", chunk, offset),
         OpCode.define_global => constantInstruction("OP_DEFINE_GLOBAL", chunk, offset),

@@ -9,6 +9,8 @@ pub const OpCode = enum {
     get_global,
     set_global,
     define_global,
+    get_local,
+    set_local,
     null,
     true,
     false,

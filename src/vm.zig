@@ -146,6 +146,14 @@ pub const Engine = struct {
                     return;
                 },
                 OpCode.pop => _ = self.pop(),
+                OpCode.get_local => {
+                    var slot = self.readByte();
+                    self.push(self.stack[slot]);
+                },
+                OpCode.set_local => {
+                    var slot = self.readByte();
+                    self.stack[slot] = self.peek(0);
+                },
                 OpCode.get_global => {
                     var name = self.readString();
                     if (self.globals.get(name.chars)) |global| {

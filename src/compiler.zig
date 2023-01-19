@@ -26,6 +26,10 @@ compiling_chunk: *Chunk,
 had_error: bool = false,
 panic_mode: bool = false,
 
+locals: [common.max_locals]Local,
+local_count: u32,
+scope_depth: i32,
+
 const Precedence = enum(u8) {
     none = 0,
     assignment, // =
@@ -46,6 +50,11 @@ const Precedence = enum(u8) {
         }
         return self;
     }
+};
+
+pub const Local = struct {
+    name: []const u8,
+    depth: i32,
 };
 
 const ParseFn = *const fn (self: *Self, can_assign: bool) void;
@@ -72,6 +81,10 @@ pub fn init(alloc: std.mem.Allocator) Self {
         .current = undefined,
         .previous = undefined,
         .compiling_chunk = undefined,
+
+        .locals = [_]Local{Local{ .name = "", .depth = 0 }} ** common.max_locals,
+        .local_count = 0,
+        .scope_depth = 0,
     };
 }
 
@@ -159,6 +172,19 @@ fn endCompiler(self: *Self) void {
     }
 }
 
+fn beginScope(self: *Self) void {
+    self.scope_depth += 1;
+}
+
+fn endScope(self: *Self) void {
+    self.scope_depth -= 1;
+
+    while (self.local_count > 0 and self.locals[self.local_count - 1].depth > self.scope_depth) {
+        self.emitOp(.pop);
+        self.local_count -= 1;
+    }
+}
+
 // Actual parsing/compiling
 fn binary(self: *Self, can_assign: bool) void {
     _ = can_assign;
@@ -223,14 +249,27 @@ fn string(self: *Self, can_assign: bool) void {
 }
 
 fn namedVariable(self: *Self, name: Token, can_assign: bool) void {
-    var arg = self.identifierConstant(name);
+    // var arg = self.identifierConstant(name);
+    var get_op: OpCode = undefined;
+    var set_op: OpCode = undefined;
+    var arg: u8 = undefined;
+
+    if (self.resolveLocal(name)) |_arg| {
+        get_op = OpCode.get_local;
+        set_op = OpCode.set_local;
+        arg = _arg;
+    } else {
+        arg = self.identifierConstant(name);
+        get_op = OpCode.get_global;
+        set_op = OpCode.set_global;
+    }
 
     if (can_assign and self.match(.equal)) {
         self.expression();
-        self.emitOp(.set_global);
+        self.emitOp(set_op);
         self.emitByte(arg);
     } else {
-        self.emitOp(.get_global);
+        self.emitOp(get_op);
         self.emitByte(arg);
     }
 }
@@ -312,18 +351,85 @@ fn identifierConstant(self: *Self, name: Token) u8 {
     return self.makeConstant(Value{ .obj = &str.obj });
 }
 
+fn resolveLocal(self: *Self, name: Token) ?u8 {
+    var i: isize = @intCast(isize, self.local_count) - 1;
+    while (i >= 0) : (i -= 1) {
+        var local = self.locals[@intCast(usize, i)];
+
+        if (std.mem.eql(u8, name.data, local.name)) {
+            if (local.depth == -1) self.err("Can't read local variable in it's own initializer.");
+
+            return @intCast(u8, i);
+        }
+    }
+
+    return null;
+}
+
+fn addLocal(self: *Self, name: []const u8) void {
+    if (self.local_count >= common.max_locals) {
+        self.err("Too many local variables in function.");
+        return;
+    }
+
+    self.locals[self.local_count].name = name;
+    self.locals[self.local_count].depth = -1;
+
+    self.local_count += 1;
+}
+
+fn declareVariable(self: *Self) void {
+    if (self.scope_depth == 0) return;
+
+    var name = self.previous.data;
+
+    var i: isize = @intCast(isize, self.local_count) - 1;
+    while (i >= 0) : (i -= 1) {
+        var local = self.locals[@intCast(usize, i)];
+        if (local.depth != -1 and local.depth < self.scope_depth) {
+            break;
+        }
+
+        if (std.mem.eql(u8, name, local.name)) {
+            self.err("Already a variable with this name in this scope.");
+        }
+    }
+
+    self.addLocal(name);
+}
+
 fn parseVariable(self: *Self, errorMessage: []const u8) u8 {
     self.consume(.identifier, errorMessage);
+
+    self.declareVariable();
+    if (self.scope_depth > 0) return 0;
+
     return self.identifierConstant(self.previous);
 }
 
+fn markInitialized(self: *Self) void {
+    self.locals[self.local_count - 1].depth = self.scope_depth;
+}
+
 fn defineVariable(self: *Self, global: u8) void {
+    if (self.scope_depth > 0) {
+        self.markInitialized();
+        return;
+    }
     self.emitOp(.define_global);
     self.emitByte(global);
 }
 
 fn expression(self: *Self) void {
     self.parsePrecedence(Precedence.assignment);
+}
+
+fn block(self: *Self) void {
+    while (!self.check(.rightBrace) and !self.check(.eof)) {
+        self.declaration();
+    }
+
+    self.consume(.rightBrace, "Expect '}' after block.");
 }
 
 fn letDeclaration(self: *Self) void {
@@ -351,7 +457,13 @@ fn declaration(self: *Self) void {
 }
 
 fn statement(self: *Self) void {
-    self.expressionStatement();
+    if (self.match(.leftBrace)) {
+        self.beginScope();
+        self.block();
+        self.endScope();
+    } else {
+        self.expressionStatement();
+    }
 }
 
 fn expressionStatement(self: *Self) void {
