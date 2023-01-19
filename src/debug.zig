@@ -60,8 +60,13 @@ pub fn disassembleInstruction(chunk: *Chunk, offset: usize) usize {
         OpCode.less => simpleInstruction("OP_LESS", offset),
         OpCode.less_equal => simpleInstruction("OP_LESS_EQ", offset),
         OpCode.@"return" => simpleInstruction("OP_RETURN", offset),
-        OpCode.jump_if_false => jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset),
+
+        // jump operations
+        OpCode.jump_if => jumpInstruction("OP_JUMP_IF", 1, chunk, offset),
         OpCode.jump => jumpInstruction("OP_JUMP", 1, chunk, offset),
+        OpCode.@"and" => jumpInstruction("OP_AND", 1, chunk, offset),
+        OpCode.@"or" => jumpInstruction("OP_OR", 1, chunk, offset),
+
         OpCode.add => simpleInstruction("OP_ADD", offset),
         OpCode.subtract => simpleInstruction("OP_SUBTRACT", offset),
         OpCode.multiply => simpleInstruction("OP_MULTIPLY", offset),

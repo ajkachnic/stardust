@@ -60,8 +60,8 @@ fn repl(alloc: std.mem.Allocator) !void {
         _ = try writer.write("> ");
         var line = try reader.readUntilDelimiterAlloc(alloc, '\n', 4096);
 
-        engine.interpret(line) catch {
-            repl_log.err("Engine error, continuing for repl", .{});
+        engine.interpret(line) catch |e| {
+            repl_log.err("Engine error {}, continuing for repl", .{e});
         };
     }
 }

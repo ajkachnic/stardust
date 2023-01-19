@@ -90,6 +90,8 @@ pub const Engine = struct {
         self.resetStack();
         var chunk = Chunk.init(self.allocator);
 
+        self.compiler.had_error = false; // Reset every time we run code
+
         try self.compiler.compile(source, &chunk);
 
         self.chunk = chunk;
@@ -145,14 +147,43 @@ pub const Engine = struct {
                     std.debug.print("{any}\n", .{self.pop()});
                     return;
                 },
-                OpCode.jump_if_false => {
+
+                // Jumping instructions
+                OpCode.jump_if => {
                     var offset = self.readShort();
-                    if (self.peek(0).isFalsey()) self.ip = self.ip[offset..];
+                    var condition = self.pop();
+
+                    if (condition.isFalsey()) {
+                        self.ip = self.ip[offset..];
+                    }
                 },
                 OpCode.jump => {
                     var offset = self.readShort();
                     self.ip = self.ip[offset..];
                 },
+                OpCode.@"and" => {
+                    var offset = self.readShort();
+                    var condition = self.peek(0);
+
+                    if (condition.isFalsey()) {
+                        // Short-circuit rhs
+                        self.ip = self.ip[offset..];
+                    } else {
+                        _ = self.pop(); // Discord condition
+                    }
+                },
+                OpCode.@"or" => {
+                    var offset = self.readShort();
+                    var condition = self.peek(0);
+
+                    if (condition.isFalsey()) {
+                        _ = self.pop(); // Discord condition
+                    } else {
+                        // Short-circuit rhs
+                        self.ip = self.ip[offset..];
+                    }
+                },
+
                 OpCode.pop => _ = self.pop(),
                 OpCode.get_local => {
                     var slot = self.readByte();

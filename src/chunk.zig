@@ -11,8 +11,13 @@ pub const OpCode = enum {
     define_global,
     get_local,
     set_local,
+    /// Push null onto the stack.
     null,
+
+    /// Push true onto the stack.
     true,
+
+    /// Push false onto the stack.
     false,
     equal,
     greater,
@@ -26,14 +31,15 @@ pub const OpCode = enum {
     not,
     negate,
     concat,
-    // print,
-    // jump,
-    // jumpIfFalse,
-    // pop,
-    // getLocal,
-    // setLocal,
-    jump_if_false,
+    /// Jump the instruction pointer [arg] forward.
     jump,
+    /// Pop and if not truthy then jump the instruction pointer [arg] forward.
+    jump_if,
+    /// If the top of the stack is false, jump [arg] forward. Otherwise pop and continue.
+    @"and",
+    /// If the top of the stack is non-false, jump [arg] forward. Otherwise pop and continue.
+    @"or",
+
     @"return",
 };
 

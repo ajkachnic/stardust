@@ -207,12 +207,12 @@ fn endScope(self: *Self) void {
 // Actual parsing/compiling
 fn binary(self: *Self, can_assign: bool) void {
     _ = can_assign;
-    var operatorType = self.previous.t;
+    var operator_type = self.previous.t;
 
-    var rule = rules.get(operatorType);
+    var rule = rules.get(operator_type);
     self.parsePrecedence(rule.precedence.increment()); // Compile the operand
 
-    switch (operatorType) {
+    switch (operator_type) {
         TokenType.bang_equal => self.emitBytes(&[_]u8{ @enumToInt(OpCode.equal), @enumToInt(OpCode.not) }),
         TokenType.equal_equal => self.emitOp(OpCode.equal),
         TokenType.greater => self.emitOp(OpCode.greater),
@@ -299,11 +299,11 @@ fn variable(self: *Self, can_assign: bool) void {
 
 fn unary(self: *Self, can_assign: bool) void {
     _ = can_assign;
-    var operatorType = self.previous.t;
+    var operator_type = self.previous.t;
 
     self.parsePrecedence(Precedence.unary); // Compile the operand
 
-    switch (operatorType) {
+    switch (operator_type) {
         TokenType.bang => self.emitOp(OpCode.not),
         TokenType.minus => self.emitOp(OpCode.negate),
         else => unreachable,
@@ -338,6 +338,9 @@ const rules = std.EnumArray(TokenType, ParseRule).initDefault(ParseRule.default(
     .identifier = ParseRule.init(&variable, null, .comparison),
     .string = ParseRule.init(&string, null, .none),
     .number = ParseRule.init(&number, null, .none),
+
+    .@"and" = ParseRule.init(null, &and_, .@"and"),
+    .@"or" = ParseRule.init(null, &or_, .@"or"),
 });
 
 fn parsePrecedence(self: *Self, precedence: Precedence) void {
@@ -443,6 +446,24 @@ fn defineVariable(self: *Self, global: u8) void {
     self.emitByte(global);
 }
 
+/// Parses and generates an and condition
+fn and_(self: *Self, can_assign: bool) void {
+    _ = can_assign;
+
+    var jump = self.emitJump(.@"and");
+    self.parsePrecedence(.@"and");
+    self.patchJump(jump);
+}
+
+/// Parses and generates an or condition
+fn or_(self: *Self, can_assign: bool) void {
+    _ = can_assign;
+
+    var jump = self.emitJump(.@"or");
+    self.parsePrecedence(.@"or");
+    self.patchJump(jump);
+}
+
 fn expression(self: *Self) void {
     self.parsePrecedence(Precedence.assignment);
 }
@@ -502,17 +523,18 @@ fn ifStatement(self: *Self) void {
     self.expression();
     // self.consume(.rightParen, "Expect ')' after condition.");
 
-    var thenJump = self.emitJump(.jump_if_false);
-    self.emitOp(.pop);
+    var then_jump = self.emitJump(.jump_if);
     self.statement();
 
-    var elseJump = self.emitJump(.jump);
+    var else_jump = self.emitJump(.jump);
 
-    self.patchJump(thenJump);
+    self.patchJump(then_jump);
     self.emitOp(.pop);
 
-    if (self.match(.@"else")) self.statement();
-    self.patchJump(elseJump);
+    if (self.match(.@"else")) {
+        self.statement();
+    }
+    self.patchJump(else_jump);
 }
 
 // Panic mode is here to reduce the number of cascading errors from a single syntax error.
