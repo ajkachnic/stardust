@@ -99,6 +99,7 @@ pub fn compile(self: *Self, source: []const u8, chunk: *Chunk) !void {
     }
 
     self.endCompiler();
+    if (self.had_error) return error.CompileError;
 }
 
 fn advance(self: *Self) void {
@@ -342,17 +343,21 @@ const rules = std.EnumArray(TokenType, ParseRule).initDefault(ParseRule.default(
 fn parsePrecedence(self: *Self, precedence: Precedence) void {
     self.advance();
 
-    var prefixRule: ?ParseFn = rules.get(self.previous.t).prefix;
+    var prefix_rule: ?ParseFn = rules.get(self.previous.t).prefix;
 
-    if (prefixRule) |rule| {
+    if (prefix_rule) |rule| {
         var can_assign = @enumToInt(precedence) <= @enumToInt(Precedence.assignment);
         rule(self, can_assign);
 
         while (@enumToInt(precedence) <= @enumToInt(rules.get(self.current.t).precedence)) {
             self.advance();
-            var infix_rule: ?ParseFn = rules.get(self.previous.t).infix;
+            var infixRule: ?ParseFn = rules.get(self.previous.t).infix;
 
-            infix_rule.?(self, can_assign);
+            if (infixRule) |infix| {
+                infix(self, can_assign);
+            } else {
+                self.err("Invalid infix operator");
+            }
         }
 
         if (can_assign and self.match(.equal)) {
@@ -521,8 +526,8 @@ fn synchronize(self: *Self) void {
             .class, .@"const", .fun, .let, .@"return" => return,
             else => {},
         }
+        self.advance();
     }
-    self.advance();
 }
 
 // Error reporting functions
@@ -548,6 +553,7 @@ fn errorAt(self: *Self, token: Token, message: []const u8) void {
     }
 
     std.debug.print(": {s}\n", .{message});
+    self.had_error = true;
 }
 
 /// Get a pointer the engine which holds the compiler
